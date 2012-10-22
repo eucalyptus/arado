@@ -1,0 +1,83 @@
+# Software License Agreement (BSD License)
+#
+# Copyright (c) 2009-2011, Eucalyptus Systems, Inc.
+# All rights reserved.
+#
+# Redistribution and use of this software in source and binary forms, with or
+# without modification, are permitted provided that the following conditions
+# are met:
+#
+#   Redistributions of source code must retain the above
+#   copyright notice, this list of conditions and the
+#   following disclaimer.
+#
+#   Redistributions in binary form must reproduce the above
+#   copyright notice, this list of conditions and the
+#   following disclaimer in the documentation and/or other
+#   materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Author: Matt Spaulding mspaulding@eucalyptus.com
+
+import subprocess
+import pexpect
+import sys
+import os
+import re
+import stat
+from .exception import SigningError
+from .exception import PathError
+
+HOMEDIR = "GNUPGHOME"
+RPMSIGN_CMD = 'rpmsign --define "_gpg_name %s" --addsign %s'
+KEY_RE = "^.*\(([\w\s]+)\).*$"
+
+def sign_packages(packages, key_name, path=''):
+    if not key_name in get_keys():
+        raise SigningError, 'No key "%s" exists' % (key_name)
+    if not packages:
+        raise SigningError, "No packages supplied"
+    package_list = " ".join([os.path.join(path, p) for p in packages])
+    proc = pexpect.spawn(RPMSIGN_CMD % (key_name, package_list))
+    proc.logfile = sys.stdout
+    proc.expect('Enter pass phrase: ')
+    proc.send('\n')
+    proc.expect(pexpect.EOF)
+    proc.close()
+    if proc.exitstatus != 0:
+        raise SigningError, "Failed to sign RPM packages"
+
+def set_gpghome(gpghome):
+    expanded_gpghome = os.path.abspath(os.path.expanduser(gpghome))
+    if not os.path.exists(expanded_gpghome):
+        raise PathError, "GPG Home %s does not exist" % (gpghome)
+    os.environ[HOMEDIR] = expanded_gpghome
+    # Fix perms so we don't get warnings
+    os.chmod(expanded_gpghome, stat.S_IRWXU)
+
+def get_keys():
+    p = subprocess.Popen(["gpg", "-K"], stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
+    output, _ = p.communicate()
+    keys = []
+    for line in output.split("\n"):
+        if line.startswith("uid"):
+            try:
+                key = re.match(KEY_RE, line).groups(0)[0]
+                key = key.split(" ")[0]
+                keys.append(key)
+            except Exception:
+                pass
+    return keys
+
