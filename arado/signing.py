@@ -40,7 +40,11 @@ from .exception import SigningError
 from .exception import PathError
 
 HOMEDIR = "GNUPGHOME"
-RPMSIGN_CMD = 'rpmsign --define "_gpg_name %s" --addsign %s'
+RPMSIGN_CMD = 'rpmsign --define "_gpg_name %s" --define "__gpg_sign_cmd %%{__gpg} \
+    gpg --force-v3-sigs --digest-algo=sha1 --batch --no-verbose --no-armor \
+        --passphrase-fd 3 --no-secmem-warning -u \"%%{_gpg_name}\" \
+            -sbo %%{__signature_filename} %%{__plaintext_filename}" --addsign %s'
+
 KEY_RE = "^.*\(([\w\s]+)\).*$"
 
 def sign_packages(packages, key_name, path=''):
