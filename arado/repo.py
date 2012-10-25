@@ -76,7 +76,7 @@ class PathBuilder(object):
 
 class APIWrapper(object):
     API_SERVER = "packages.release.eucalyptus-systems.com"
-    API_TEMPL = "http://%s/api/1/genrepo?distro=centos&releasever=6&arch=x86_64&url=%s&ref=%s"
+    API_TEMPL = "http://%s/api/1/genrepo?distro=centos&releasever=6&arch=x86_64&url=%s&ref=%s&allow-old=true"
     REPO_MAP = {
         "eucalyptus" : "repo-euca@git.eucalyptus-systems.com:eucalyptus",
         "enterprise" : "repo-euca@git.eucalyptus-systems.com:internal",
