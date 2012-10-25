@@ -40,7 +40,7 @@ import sys
 import os
 
 if __name__ == "__main__":
-    parser = OptionParser(version="%prog %s" % (version))
+    parser = OptionParser(version="%%prog %s" % (__version__))
     parser.add_option("-p", "--project", dest="project",
         help="project for build promotion (e.g. eucalyptus)")
     parser.add_option("-c", "--commit", dest="commit",
