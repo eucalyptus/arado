@@ -70,6 +70,17 @@ def set_gpghome(gpghome):
     # Fix perms so we don't get warnings
     os.chmod(expanded_gpghome, stat.S_IRWXU)
 
+def export_public_key(keyname):
+    p = subprocess.Popen(["gpg", "--export", "-a", keyname],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, _ = p.communicate()
+    return output
+
+def export_public_key_file(keyname, filename):
+    fp = open(filename, "wb")
+    fp.write(export_public_key(keyname))
+    fp.close()
+
 def get_keys():
     p = subprocess.Popen(["gpg", "-K"], stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
