@@ -1,0 +1,15 @@
+[{{package_name}}]
+name={{package_name}}
+baseurl={{url}}
+{% if pubkey %}
+gpgkey=file:///etc/pki/rpm-gpg/{{package_name}}.pub
+gpgcheck=1
+{% endif %}
+enabled=1
+{%if cert %}
+sslclientcert=/etc/pki/tls/certs/{{package_name}}.crt
+{% endif %}
+{% if key %}
+sslclientkey=/etc/pki/tls/private/{{package_name}}.key
+{% endif %}
+

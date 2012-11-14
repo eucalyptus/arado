@@ -1,0 +1,68 @@
+%define _topdir {{rpmdir}}
+%define dist {{platform}}
+
+Name:       {{package_name}}
+Version:    {{package_version}}
+Release:    {{release_version}}%{?dist}
+Summary:    {{package_name}} package
+
+Group:      Applications/System
+License:    GPLv3
+URL:        http://www.eucalyptus.com
+
+Source0:    {{repofile}}
+{% if pubkey %}
+Source1:    {{pubkey}}
+{% endif %}
+{% if cert %}
+Source2:    {{cert}}
+{% endif %}
+{% if key %}
+Source3:    {{key}}
+{% endif %}
+BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+BuildArch:  noarch
+
+%description
+{{package_name}} package
+
+%prep
+
+
+%build
+
+
+%install
+mkdir -p $RPM_BUILD_ROOT/etc/yum.repos.d
+install -pm 644 %{SOURCE0} $RPM_BUILD_ROOT/etc/yum.repos.d/{{package_name}}.repo
+{% if pubkey %}
+mkdir -p $RPM_BUILD_ROOT/etc/pki/rpm-gpg
+install -pm 644 %{SOURCE1} $RPM_BUILD_ROOT/etc/pki/rpm-gpg/{{package_name}}.pub
+{% endif %}
+{% if cert %}
+mkdir -p $RPM_BUILD_ROOT/etc/pki/tls/certs
+install -pm 644 %{SOURCE2} $RPM_BUILD_ROOT/etc/pki/tls/certs/{{package_name}}.crt
+{% endif %}
+{% if key %}
+mkdir -p $RPM_BUILD_ROOT/etc/pki/tls/private
+install -pm 644 %{SOURCE3} $RPM_BUILD_ROOT/etc/pki/tls/private/{{package_name}}.key
+{% endif %}
+
+
+%files
+/etc/yum.repos.d/{{package_name}}.repo
+{% if pubkey %}
+/etc/pki/rpm-gpg/{{package_name}}.pub
+{% endif %}
+{% if cert %}
+/etc/pki/tls/certs/{{package_name}}.crt
+{% endif %}
+{% if key %}
+/etc/pki/tls/private/{{package_name}}.key
+{% endif %}
+
+%changelog
+* Wed Oct 17 2012 Eucalyptus Release Engineering <support@eucalyptus.com>
+- Release package build
+
