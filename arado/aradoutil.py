@@ -145,6 +145,13 @@ def sign_repo(repo, signingkey):
         except SigningError, e:
             print e
 
+def rebuild_all_repos(toplevel):
+    for d in NEW_REPO_TEMPL["dirs"]:
+        for arch in ("i386", "x86_64"):
+            archdir = os.path.join(toplevel, d, arch)
+            if os.path.isdir(archdir):
+                rebuild_repo(archdir)
+
 # @verifypath
 def rebuild_repo(repo):
     print "Info: createrepo on " + repo
