@@ -52,6 +52,6 @@ if __name__ == "__main__":
         parser.error("Must specify project and commit ref!")
 
     api = APIWrapper(options.project, options.commit)
-    builder = PathBuilder(api, "nightly")
+    builder = PathBuilder(api=api, buildtype="nightly")
     print os.path.basename(builder.source_path).split("-")[0]
 
