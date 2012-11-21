@@ -46,10 +46,17 @@ class PathBuilder(object):
         "eucadw" : "eucalyptus",
         "eucalyptus-console" : "eucalyptus",
     }
+    DEFAULT_OPTS = {
+        "api" : None,
+        "buildtype" : None,
+        "release" : None
+    }
 
-    def __init__(self, api, buildtype=None):
-        self.api = api
-        self.buildtype = buildtype
+    def __init__(self, **opts):
+        self.opts = dict(PathBuilder.DEFAULT_OPTS, **opts)
+        self.api = self.opts["api"]
+        self.buildtype = self.opts["buildtype"]
+        self.release = self.opts["release"]
 
     @property
     def project_path(self):
@@ -68,10 +75,10 @@ class PathBuilder(object):
     def dest_path(self):
         if self.buildtype and self.buildtype is not "release":
             return os.path.join(PathBuilder.DEST_PATH, self.project_path,
-                    self.buildtype, self.api.release)
+                    self.buildtype, self.release)
         else:
             return os.path.join(PathBuilder.DEST_PATH, self.project_path,
-                    self.api.release)
+                    self.release)
 
 
 class APIWrapper(object):
@@ -84,10 +91,9 @@ class APIWrapper(object):
         "eucalyptus-console" : "https://github.com/eucalyptus/eucalyptus-ui.git",
     }
 
-    def __init__(self, project, commit, release=None):
+    def __init__(self, project, commit):
         self.project = project
         self.commit = commit
-        self.release = release
         self.cached_packages = None
 
     @property
