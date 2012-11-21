@@ -63,10 +63,10 @@ if __name__ == "__main__":
         parser.error("Must specify project, commit and release!")
 
     if options.gpgdir:
-        signing.set_gpghome(gpgdir)
+        signing.set_gpghome(options.gpgdir)
 
-    api = APIWrapper(options.project, options.commit, options.release)
-    builder = PathBuilder(api, options.buildtype)
+    api = APIWrapper(options.project, options.commit)
+    builder = PathBuilder(api=api, buildtype=options.buildtype, release=options.release)
 
     temp_repo = aradoutil.create_staging_repo(builder.dest_path, options.merge)
     aradoutil.merge_repos(builder.source_path, temp_repo, options.signingkey)
