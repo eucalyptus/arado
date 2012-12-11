@@ -73,7 +73,7 @@ class PathBuilder(object):
 
     @property
     def dest_path(self):
-        if self.buildtype and self.buildtype is not "release":
+        if self.buildtype and self.buildtype != "release":
             return os.path.join(PathBuilder.DEST_PATH, self.project_path,
                     self.buildtype, self.release)
         else:
