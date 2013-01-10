@@ -78,7 +78,6 @@ class verifypath(object):
             raise PathError, self.error % (p)
 """
 
-
 def parsefiles(html):
     soup = BeautifulSoup(html)
     return [link.string.strip() for link in soup.findAll('a')]
@@ -140,8 +139,11 @@ def create_staging_repo(path, merge=False):
 def sign_repo(repo, signingkey):
     for root, dirs, files in os.walk(repo, onerror=walkerror):
         try:
-            sign_packages(fnmatch.filter(files, "*.rpm"), signingkey,
-                path=root)
+            pkglist = []
+            for pkg in fnmatch.filter(files, "*.rpm"):
+                if not os.path.islink(os.path.join(root, pkg)):
+                    pkglist.append(pkg)
+            sign_packages(pkglist, signingkey, path=root)
         except SigningError, e:
             print e
 
@@ -153,20 +155,47 @@ def rebuild_all_repos(toplevel):
                 rebuild_repo(archdir)
 
 # @verifypath
-def rebuild_repo(repo):
-    print "Info: createrepo on " + repo
-    cmd = ["/usr/bin/createrepo"]
+def rebuild_repo(path, chroot="/mnt/chroot"):
+    print "Info: createrepo on " + path
+
+    cmd = []
+    repo = path
+
+    if chroot:
+        cmd = ["/usr/sbin/chroot", chroot]
+        os.system("mount --bind %s %s" % (path, os.path.join(chroot, "mnt")))
+        repo = "/mnt"
+
+    cmd += ["/usr/bin/createrepo"]
+
     comps_file = None
     try:
-        comps_file = glob.glob(os.path.join(repo, "*xml"))[0]
+        comps_file = glob.glob(os.path.join(path, "*xml"))[0]
+        if chroot:
+            comps_file = os.path.join("/mnt", os.path.basename(comps_file))
+
         cmd += ["-g", comps_file]
         print 'Info: using comps file "%s"' % (comps_file)
     except Exception, e:
         print e
-    cmd += ["-d", "--update", "."]
-    p = subprocess.Popen(cmd, cwd=repo,
+
+    cmd += ["--checksum=sha",
+            "--update",
+            "--skip-symlinks",
+            "--unique-md-filenames"]
+
+    if chroot:
+        cmd += ["/mnt"]
+    else:
+        cmd += ["."]
+
+    p = subprocess.Popen(cmd, cwd=path,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     p.communicate()
+
+    if chroot:
+        os.system("umount %s" % (path))
+
     if p.returncode > 0:
         raise PromotionError, "Failed to rebuild repository"
 

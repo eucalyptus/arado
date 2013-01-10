@@ -47,18 +47,31 @@ RPMSIGN_CMD = 'rpmsign --define "_gpg_name %s" --define "__gpg_sign_cmd %%{__gpg
 
 KEY_RE = "^.*\(([\w\s]+)\).*$"
 
-def sign_packages(packages, key_name, path=''):
-    if not key_name in get_keys():
-        raise SigningError, 'No key "%s" exists' % (key_name)
+def sign_packages(packages, key_name, path='.', chroot="/mnt/chroot"):
+    #if not key_name in get_keys():
+        #raise SigningError, 'No key "%s" exists' % (key_name)
     if not packages:
         raise SigningError, "No packages supplied"
-    package_list = " ".join([os.path.join(path, p) for p in packages])
-    proc = pexpect.spawn(RPMSIGN_CMD % (key_name, package_list))
+
+    signcmd = ""
+    pkgpath = path
+    if chroot:
+        signcmd += "/usr/sbin/chroot %s " % (chroot)
+        os.system("mount --bind %s %s" % (path, os.path.join(chroot, "mnt")))
+        pkgpath = "/mnt"
+    signcmd += RPMSIGN_CMD
+
+    package_list = " ".join([os.path.join(pkgpath, pkg) for pkg in packages])
+    proc = pexpect.spawn(signcmd % (key_name, package_list))
     proc.logfile = sys.stdout
     proc.expect('Enter pass phrase: ')
     proc.send('\n')
     proc.expect(pexpect.EOF)
     proc.close()
+
+    if chroot:
+        os.system("umount %s" % (path))
+
     if proc.exitstatus != 0:
         raise SigningError, "Failed to sign RPM packages"
 
