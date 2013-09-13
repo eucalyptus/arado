@@ -32,13 +32,16 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
-from arado.repo import APIWrapper
-from arado.repo import PathBuilder
-from arado import aradoutil
-from arado import __version__
-from optparse import OptionParser
-import sys
 import os
+import sys
+
+from optparse import OptionParser
+
+from arado.api import APIWrapper, PathBuilder
+from arado import repo
+from arado import signing
+from arado import __version__
+
 
 if __name__ == "__main__":
     parser = OptionParser(version="%%prog %s" % (__version__))
@@ -46,12 +49,27 @@ if __name__ == "__main__":
         help="project for build promotion (e.g. eucalyptus)")
     parser.add_option("-c", "--commit", dest="commit",
         help="reference to a commit; either a hash, tag, or branch")
+    parser.add_option("-r", "--release", dest="release",
+        help="point-release version (e.g. 3.2)")
+    parser.add_option("-t", "--type", dest="buildtype", default="nightly",
+        help="optionally supply a build type (release, prerelease, nightly)")
+    parser.add_option("-k", "--key", dest="signingkey",
+        help="optionally supply a signing key (release, prerelease, nightly)")
+    parser.add_option("-g", "--gpgdir", dest="gpgdir",
+        help="optionally supply gpg key directory")
     (options, args) = parser.parse_args()
 
-    if None in (options.project, options.commit):
-        parser.error("Must specify project and commit ref!")
+    if None in (options.project, options.commit, options.release):
+        parser.error("Must specify project, commit and release!")
+
+    if options.gpgdir:
+        signing.set_gpghome(options.gpgdir)
 
     api = APIWrapper(options.project, options.commit)
-    builder = PathBuilder(api=api, buildtype="nightly")
-    print os.path.basename(builder.source_path).split("-")[0]
+    builder = PathBuilder(api=api, buildtype=options.buildtype, release=options.release)
+
+    temp_repo = repo.stage(builder.dest_path, True)
+    repo.sign(temp_repo, options.signingkey)
+    repo.rebuild_all(temp_repo)
+    repo.replace(temp_repo, builder.dest_path)
 

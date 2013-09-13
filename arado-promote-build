@@ -32,14 +32,15 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
-from arado.repo import APIWrapper
-from arado.repo import PathBuilder
-from arado import aradoutil
-from arado import signing
-from arado import __version__
-from optparse import OptionParser
-import sys
 import os
+import sys
+
+from optparse import OptionParser
+
+from arado.api import APIWrapper, PathBuilder
+from arado import repo, signing
+from arado import __version__
+
 
 if __name__ == "__main__":
     parser = OptionParser(version="%%prog %s" % (__version__))
@@ -55,6 +56,8 @@ if __name__ == "__main__":
         help="optionally supply a signing key (release, prerelease, nightly)")
     parser.add_option("-g", "--gpgdir", dest="gpgdir",
         help="optionally supply gpg key directory")
+    parser.add_option("-m", "--merge", action="store_true", dest="merge", default=False,
+        help="merge build with repository (if it exists)")
     (options, args) = parser.parse_args()
 
     if None in (options.project, options.commit, options.release):
@@ -66,8 +69,7 @@ if __name__ == "__main__":
     api = APIWrapper(options.project, options.commit)
     builder = PathBuilder(api=api, buildtype=options.buildtype, release=options.release)
 
-    temp_repo = aradoutil.create_staging_repo(builder.dest_path, True)
-    aradoutil.sign_repo(temp_repo, options.signingkey)
-    aradoutil.rebuild_all_repos(temp_repo)
-    aradoutil.replace_repo(temp_repo, builder.dest_path)
+    temp_repo = repo.stage(builder.dest_path, options.merge)
+    repo.merge(builder.source_path, temp_repo, options.signingkey)
+    repo.replace(temp_repo, builder.dest_path)
 

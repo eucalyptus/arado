@@ -31,7 +31,6 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 from distutils.core import setup
-import os.path
 
 from arado import __version__
 
@@ -42,8 +41,8 @@ setup(name = "arado",
       author = "Matt Spaulding",
       author_email = "mspaulding@eucalyptus.com",
 
-      scripts = ["bin/arado-describe-build",
-                 "bin/arado-promote-build"],
+      scripts = ["arado-describe-build",
+                 "arado-promote-build"],
       url = "http://www.eucalyptus.com",
       packages = ["arado"],
       license = 'BSD (Simplified)',

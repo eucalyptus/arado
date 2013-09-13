@@ -30,22 +30,38 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
+import os
 
-class AradoException(Exception):
-    """Base class for all Arado package exceptions."""
+from ConfigParser import SafeConfigParser
 
+from .exception import ConfigError
 
-class SigningError(AradoException):
-    """Class for errors related to package signing."""
-
-
-class PromotionError(AradoException):
-    """Class for errors that cause a repository promotion to fail."""
+__all__ = [ "get_config" ]
 
 
-class RepositoryError(AradoException):
-    pass
+class Config(SafeConfigParser):
+    def __init__(self, config_file):
+        SafeConfigParser.__init__(self)
+        self.config_file = config_file
+        self.read(config_file)
 
+    def __getattr__(self, name):
+        def _search_config(*args, **kwargs):
+            if name not in ('api', 'paths', 'projects', 'mappings'):
+                raise ConfigError("category '{}' does not exist"
+                                  .format(name))
+            return {key: self.get(name, key)
+                for key in self.options(name)}
+        return _search_config
 
-class ConfigError(AradoException):
-    """Class for errors accessing the arado config file."""
+    def __repr__(self):
+        return '<config: {}>'.format(self.config_file)
+
+    def __str__(self):
+        return super.__str__(self)
+
+def get_config():
+    if os.path.isfile('/etc/arado.conf'):
+        return Config('/etc/arado.conf')
+    elif os.path.isfile('arado.conf'):
+        return Config('arado.conf')
