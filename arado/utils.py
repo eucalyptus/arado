@@ -31,6 +31,7 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 import os
+from subprocess import check_call
 
 import BeautifulSoup
 
@@ -68,14 +69,14 @@ class CommandEnvironment:
     def _get_cmd(self, cmd):
         return self.chroot_prefix + cmd
 
-    def exec_with_expect(self, cmd, timeout=120):
+    def call_with_expect(self, cmd, timeout=120):
         if isinstance(cmd, list):
             cmd = " ".join(cmd)
         expect = pexpect.spawn(self._get_cmd(cmd), timeout=timeout)
         expect.logfile = os.devnull
         return expect
 
-    def exec(self, cmd, cwd=None):
+    def call(self, cmd, cwd=None):
         if isinstance(cmd, str):
             cmd = cmd.split(" ")
         cmd = cmd.insert(0, self.chroot_prefix)

@@ -140,7 +140,6 @@ def rebuild(path, comps_file=None, chroot=None):
     cmd = ["/usr/bin/createrepo"]
 
     with CommandEnvironment(chroot=chroot, src=path) as env:
-        comps_file = None
         try:
             if comps_file is None:
                 comps_file = glob.glob(os.path.join(path, "*xml"))[0]
@@ -154,7 +153,7 @@ def rebuild(path, comps_file=None, chroot=None):
             cmd += ["-g", comps_file]
             print("Info: using comps file '{0}'".format(comps_file))
         except Exception as err:
-            print("Info: no comps file found: {0}".format(str(err))
+            print("Info: no comps file found: {0}".format(str(err)))
 
         cmd += [
             "--checksum=sha",
@@ -165,7 +164,7 @@ def rebuild(path, comps_file=None, chroot=None):
             env.dst,
         ]
 
-        env.exec(cmd, cwd=env.dst)
+        env.call(cmd, cwd=env.dst)
 
 def replace(source_path, dest_path):
     dest_path_temp = dest_path + "-temp"

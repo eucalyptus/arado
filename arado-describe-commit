@@ -2,7 +2,7 @@
 
 # Software License Agreement (BSD License)
 #
-# Copyright (c) 2012, Eucalyptus Systems, Inc.
+# Copyright (c) 2012-2013, Eucalyptus Systems, Inc.
 # All rights reserved.
 #
 # Redistribution and use of this software in source and binary forms, with or
@@ -35,23 +35,24 @@
 import os
 import sys
 
+from argparse import ArgumentParser
+
 from arado.api import APIWrapper, PathBuilder
 from arado import __version__
-from optparse import OptionParser
 
 
 if __name__ == "__main__":
-    parser = OptionParser(version="%%prog %s" % (__version__))
-    parser.add_option("-p", "--project", dest="project",
+    parser = ArgumentParser(description="")
+    parser.add_argument("--project", dest="project",
         help="project for build promotion (e.g. eucalyptus)")
-    parser.add_option("-c", "--commit", dest="commit",
+    parser.add_argument("--commit", dest="commit",
         help="reference to a commit; either a hash, tag, or branch")
-    (options, args) = parser.parse_args()
+    args = parser.parse_args()
 
-    if None in (options.project, options.commit):
+    if None in (args.project, args.commit):
         parser.error("Must specify project and commit ref!")
 
-    api = APIWrapper(options.project, options.commit)
+    api = APIWrapper(args.project, args.commit)
     builder = PathBuilder(api=api, buildtype="nightly")
     print os.path.basename(builder.source_path).split("-")[0]
 
