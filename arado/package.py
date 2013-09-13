@@ -34,7 +34,7 @@
 import os
 import glob
 import tempfile
-import subprocess
+from subprocess import check_call, CalledProcessError
 
 # Third party libraries
 import jinja2
@@ -109,22 +109,21 @@ class PackageBuilder(object):
         self.opts["repofile"] = tempfile.mktemp(suffix=".repo",
             dir=os.path.join(self.opts["rpmdir"], "SOURCES"))
         self.repofile = RepoFile(self.path, **self.opts)
-        fp = open(self.opts["repofile"], "wb")
-        fp.write(str(self.repofile))
-        fp.close()
+        with open(self.opts["repofile"], "wb") as fp:
+            fp.write(str(self.repofile))
 
         # Generate spec file from template
         tmpspec = tempfile.mktemp(suffix=".spec",
             dir=os.path.join(self.opts["rpmdir"], "SPECS"))
         self.specfile = SpecFile(self.path, **self.opts)
-        fp = open(tmpspec, "wb")
-        fp.write(str(self.specfile))
-        fp.close()
+        with open(tmpspec, "wb") as fp:
+            write(str(self.specfile))
 
         cmd = [ '/usr/bin/rpmbuild', '-bb', tmpspec ]
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, err = p.communicate()
+        try:
+            subprocess.check_call(cmd)
+        except CalledProcessError as err:
+            raise Exception("ERROR: command {0} failed with status {1}".format(cmd, err.returncode))
 
         return glob.glob(os.path.join(self.opts["rpmdir"],
             "RPMS/noarch/*.rpm"))[0]
-
