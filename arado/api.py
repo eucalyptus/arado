@@ -44,14 +44,6 @@ from .config import get_config
 
 
 class PathBuilder(object):
-    SRC_PATH = "/srv/build-repo/repository/release"
-    DEST_PATH = "/srv/software/releases"
-    PATH_MAP = {
-        "eucalyptus": "eucalyptus",
-        "enterprise": "enterprise",
-        "eucadw": "eucalyptus",
-        "eucalyptus-console": "eucalyptus",
-    }
     DEFAULT_OPTS = {
         "api": None,
         "buildtype": None,
@@ -60,21 +52,21 @@ class PathBuilder(object):
 
     def __init__(self, **opts):
         self.opts = dict(PathBuilder.DEFAULT_OPTS, **opts)
-        self.api = self.opts["api"]
-        self.buildtype = self.opts["buildtype"]
-        self.release = self.opts["release"]
+        self.api = self.opts.get('api')
+        self.buildtype = self.opts.get('buildtype')
+        self.release = self.opts.get('release')
         self.config = get_config()
 
     @property
     def mapping(self):
         try:
-            return self.config.mappings[self.api.project]
+            return self.config.mappings().get(self.api.project)
         except:
             return None
 
     @property
     def source_path(self):
-        return os.path.join(self.config.paths['source'],
+        return os.path.join(self.config.paths().get('source'),
                             self.api.repository
                             .replace("http://" + APIWrapper.API_SERVER + "/", "")
                             .replace("/centos/6/x86_64", ""))
@@ -82,39 +74,39 @@ class PathBuilder(object):
     @property
     def dest_path(self):
         if self.buildtype and self.buildtype != 'release':
-            return os.path.join(self.config.paths['destination'], self.mapping,
-                                self.buildtype, self.release)
+            return os.path.join(self.config.paths().get('destination'),
+                    self.mapping, self.buildtype, self.release)
         else:
-            return os.path.join(self.config.paths['destination'], self.mapping,
-                                self.release)
+            return os.path.join(self.config.paths().get('destination'),
+                    self.mapping, self.release)
 
 
 class APIWrapper(object):
-    API_SERVER = "packages.release.eucalyptus-systems.com"
-    API_TEMPL = "http://%s/api/1/genrepo?distro=centos&releasever=6&arch=x86_64&url=%s&ref=%s&allow-old=true"
-    REPO_MAP = {
-        "eucalyptus": "repo-euca@git.eucalyptus-systems.com:eucalyptus",
-        "enterprise": "repo-euca@git.eucalyptus-systems.com:internal",
-        "eucadw": "https://github.com/eucalyptus/bodega.git",
-        "eucalyptus-console": "https://github.com/eucalyptus/eucalyptus-ui.git",
-    }
+    API_TEMPL = "{0}?distro=centos&releasever=6&arch=x86_64&url={1}&ref={2}&allow-old=true"
 
     def __init__(self, project, commit):
         self.project = project
         self.commit = commit
+        self.config = get_config()
         self.cached_packages = None
 
     @property
     def url(self):
         try:
-            return APIWrapper.REPO_MAP[self.project]
+            return self.config.projects().get(self.project)
+        except:
+            return None
+
+    @property
+    def api(self):
+        try:
+            return self.config.general().get('api-url')
         except:
             return None
 
     @property
     def repository(self):
-        r = requests.get(APIWrapper.API_TEMPL %
-                         (APIWrapper.API_SERVER, self.url, self.commit))
+        r = requests.get(APIWrapper.API_TEMPL.format(self.api, self.url, self.commit))
         if r.status_code != 200:
             raise PromotionError(r.text)
         return r.text.rstrip()
