@@ -49,8 +49,8 @@ class Config(SafeConfigParser):
         def _search_config(*args, **kwargs):
             if name not in ('general', 'paths', 'projects', 'mappings'):
                 raise ConfigError("unknown category '{0}'".format(name))
-            return {key: self.get(name, key)
-                for key in self.options(name)}
+            return dict((key, self.get(name, key))
+                for key in self.options(name))
         return _search_config
 
     def __repr__(self):

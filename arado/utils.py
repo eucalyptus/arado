@@ -33,11 +33,11 @@
 import os
 from subprocess import check_call
 
-import BeautifulSoup
+from BeautifulSoup import BeautifulSoup
 
 
 def links_from_html(html):
-    return (link.string.strip() for link in BeautifulSoup(html).findAll('a'))
+    return [link.string.strip() for link in BeautifulSoup(html).findAll('a')]
 
 
 class CommandEnvironment:

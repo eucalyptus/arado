@@ -32,6 +32,7 @@
 
 # Core libraries
 import os
+import re
 import sys
 
 # Third party libraries
@@ -44,6 +45,7 @@ from .utils import links_from_html
 
 
 class PathBuilder(object):
+    SOURCE_RE = re.compile('http://[\w\-\.]+/(.*)/centos/6/x86_64') 
     DEFAULT_OPTS = {
         "api": None,
         "buildtype": None,
@@ -66,10 +68,8 @@ class PathBuilder(object):
 
     @property
     def source_path(self):
-        return os.path.join(self.config.paths().get('source'),
-                            self.api.repository
-                            .replace("http://" + APIWrapper.API_SERVER + "/", "")
-                            .replace("/centos/6/x86_64", ""))
+        path = self.SOURCE_RE.match(self.api.repository).groups()[0]
+        return os.path.join(self.config.paths().get('source'), path)
 
     @property
     def dest_path(self):
@@ -122,5 +122,6 @@ class APIWrapper(object):
                 # it is parent directory
                 self.cached_packages = links_from_html(r.text)[1:]
             return self.cached_packages
-        except Exception:
+        except Exception as err:
+            print("exception: {0}".format(err)) 
             return []
