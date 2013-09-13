@@ -32,10 +32,8 @@
 
 from distutils.core import setup
 
-from arado import __version__
-
 setup(name = "arado",
-      version = __version__,
+      version = '0.1',
       description = "Arado Package Repository Tools",
       long_description="Arado Package Repository Tools",
       author = "Matt Spaulding",
