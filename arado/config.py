@@ -36,7 +36,7 @@ from ConfigParser import SafeConfigParser
 
 from .exception import ConfigError
 
-__all__ = [ "get_config" ]
+__all__ = ['get_config']
 
 
 class Config(SafeConfigParser):
@@ -47,21 +47,27 @@ class Config(SafeConfigParser):
 
     def __getattr__(self, name):
         def _search_config(*args, **kwargs):
-            if name not in ('api', 'paths', 'projects', 'mappings'):
-                raise ConfigError("category '{}' does not exist"
-                                  .format(name))
+            if name not in ('general', 'paths', 'projects', 'mappings'):
+                raise ConfigError("unknown category '{0}'".format(name))
             return {key: self.get(name, key)
                 for key in self.options(name)}
         return _search_config
 
     def __repr__(self):
-        return '<config: {}>'.format(self.config_file)
+        return '<config: {0}>'.format(self.config_file)
 
     def __str__(self):
         return super.__str__(self)
 
+    @property
+    def filename(self):
+        return self.config_file
+
 def get_config():
     if os.path.isfile('/etc/arado.conf'):
         return Config('/etc/arado.conf')
-    elif os.path.isfile('arado.conf'):
-        return Config('arado.conf')
+    elif os.path.isfile(os.path.join(os.getcwd(), 'arado.conf')):
+        return Config(os.path.join(os.getcwd(), 'arado.conf'))
+    elif os.path.isfile(os.path.expanduser('~/.arado.conf')):
+        return Config((os.path.expanduser('~/.arado.conf')))
+

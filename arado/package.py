@@ -31,8 +31,8 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 # Core libraries
-import os
 import glob
+import os
 import tempfile
 from subprocess import check_call, CalledProcessError
 
@@ -56,7 +56,7 @@ class TemplateFile(object):
     def __str__(self):
         for key, value in self.opts.iteritems():
             if value is None:
-                raise ValueError("Required key '{}' is not set".format(key))
+                raise ValueError("Required key '{0}' is not set".format(key))
         tmpl = self.env.select_template([self.template])
         return tmpl.render(**self.opts)
 

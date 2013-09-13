@@ -30,11 +30,11 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
-import sys
 import os
 import re
 import stat
 import subprocess
+import sys
 
 import pexpect
 
@@ -53,7 +53,7 @@ KEY_RE = "sec.*\/\([\w]+\).*"
 
 def sign_packages(packages, key_id, path='.', chroot=None):
     if key_id not in get_key_ids():
-        raise SigningError("key '{}' not found".format(key_id))
+        raise SigningError("key '{0}' not found".format(key_id))
     if not packages:
         return
 
@@ -71,7 +71,7 @@ def sign_packages(packages, key_id, path='.', chroot=None):
 def set_gpghome(gpghome):
     expanded_gpghome = os.path.abspath(os.path.expanduser(gpghome))
     if not os.path.exists(expanded_gpghome):
-        raise ValueError("path '{}' does not exist".format(gpghome))
+        raise ValueError("path '{0}' does not exist".format(gpghome))
     os.environ['GNUPGHOME'] = expanded_gpghome
     # Fix perms so we don't get warnings
     os.chmod(expanded_gpghome, stat.S_IRWXU)

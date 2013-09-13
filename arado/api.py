@@ -38,9 +38,9 @@ import sys
 import requests
 
 # Local libraries
-from .utils import links_from_html
-from .exception import PromotionError
 from .config import get_config
+from .exception import PromotionError
+from .utils import links_from_html
 
 
 class PathBuilder(object):

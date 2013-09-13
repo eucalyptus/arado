@@ -31,18 +31,19 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 # Core libraries
-import os
-import glob
 import fnmatch
-import tempfile
+import glob
+import os
 import shutil
-import subprocess
 import stat
+from subprocess import check_call, CalledProcessError
+import tempfile
 
 # Third party libraries
 from BeautifulSoup import BeautifulSoup
 
 # Local libraries
+from .config import get_config
 from .exception import SigningError, PromotionError
 
 NEW_REPO_TEMPL = {
@@ -74,16 +75,16 @@ def merge(source, dest, signingkey=None):
             continue
 
         if not os.path.exists(dest_root):
-            print("Info: creating directory '{}'".format(dest_root))
+            print("Info: creating directory '{0}'".format(dest_root))
             os.mkdir(dest_root)
 
         for f in files:
             dest_file = os.path.join(dest_root, f)
             if os.path.islink(dest_file):
-                print "Info: skipping symlink " + f
+                print "Info: skipping symlink {0}".format(f)
                 continue
             if os.path.exists(dest_file):
-                print "Info: skipping duplicate " + f
+                print "Info: skipping duplicate {0}".format(f)
             else:
                 shutil.copy2(os.path.join(root, f), dest_root)
     # Rebuild repository metadata
@@ -106,16 +107,17 @@ def sign(repo, signingkey):
 
 
 def stage(path, merge=False):
-    path_tmp = tempfile.mkdtemp(dir="/srv/software/.repotmp")
+    tmpdir = get_config().paths().get('repotemp', '/var/tmp')
+    path_tmp = tempfile.mkdtemp(dir=tmpdir)
     os.chmod(path_tmp,
              stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH |
              stat.S_IXOTH | stat.S_ISGID)
     if os.path.exists(path) and merge:
         cmd = ['cp', '-a', os.path.join(path, '.'), path_tmp]
-        p = subprocess.Popen(cmd)
-        p.communicate()
-        if p.returncode > 0:
-            raise PromotionError("Failed to create temporary repository")
+        try:
+            check_call(cmd)
+        except CalledProcessError as err:
+            raise PromotionError("Failed to create temporary repository with status {0}".format(err.returncode))
     else:
         print("Info: creating repository template")
         for d in NEW_REPO_TEMPL["dirs"]:
@@ -133,22 +135,26 @@ def rebuild_all(toplevel):
                 rebuild_repo(archdir)
 
 
-def rebuild(path, chroot=None):
-    print("Info: createrepo on " + path)
+def rebuild(path, comps_file=None, chroot=None):
+    print("Info: createrepo on {0}".format(path))
     cmd = ["/usr/bin/createrepo"]
 
     with CommandEnvironment(chroot=chroot, src=path) as env:
         comps_file = None
         try:
-            comps_file = glob.glob(os.path.join(path, "*xml"))[0]
+            if comps_file is None:
+                comps_file = glob.glob(os.path.join(path, "*xml"))[0]
             if env.is_mounted:
                 comps_file = os.path.join(env.dst,
                                           os.path.basename(comps_file))
 
+            if not os.path.exists(comps_file):
+                raise Exception("file {0} does not exist".format(comps_file))
+
             cmd += ["-g", comps_file]
-            print("Info: using comps file '{}'".format(comps_file))
-        except Exception, e:
-            print("Info: no comps file found")
+            print("Info: using comps file '{0}'".format(comps_file))
+        except Exception as err:
+            print("Info: no comps file found: {0}".format(str(err))
 
         cmd += [
             "--checksum=sha",
@@ -159,10 +165,7 @@ def rebuild(path, chroot=None):
             env.dst,
         ]
 
-        exitcode = env.exec_with_stdout(cmd, cwd=env.dst)['exitcode']
-        if exitcode > 0:
-            raise PromotionError("Failed to rebuild repository")
-
+        env.exec(cmd, cwd=env.dst)
 
 def replace(source_path, dest_path):
     dest_path_temp = dest_path + "-temp"

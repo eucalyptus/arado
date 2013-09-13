@@ -63,15 +63,10 @@ class CommandEnvironment:
         if chroot is None:
             return ''
         else:
-            return "/usr/sbin/chroot {} ".format(self.chroot)
+            return "/usr/sbin/chroot {0} ".format(self.chroot)
 
     def _get_cmd(self, cmd):
         return self.chroot_prefix + cmd
-
-    def exec_with_exitcode(self, cmd):
-        if isinstance(cmd, list):
-            cmd = " ".join(cmd)
-        return os.system(self._get_cmd(cmd))
 
     def exec_with_expect(self, cmd, timeout=120):
         if isinstance(cmd, list):
@@ -80,24 +75,36 @@ class CommandEnvironment:
         expect.logfile = os.devnull
         return expect
 
-    def exec_with_stdout(self, cmd, cwd=None):
+    def exec(self, cmd, cwd=None):
         if isinstance(cmd, str):
             cmd = cmd.split(" ")
         cmd = cmd.insert(0, self.chroot_prefix)
-        opts = dict(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        opts = {}
         if cwd is not None:
             opts['cwd'] = cwd
-        p = subprocess.Popen(cmd, **opts)
-        return dist(exitcode=p.returncode, stdout=p.communicate()[0])
+        try:
+            check_call(cmd, **opts)
+        except CalledProcessError as err:
+            raise Exception("Command {0} failed with status {1}".format(cmd, err.returncode))
 
     def mount(self):
         self.dst = dst
-        os.system("mount --bind {} {}".format(self.src, self.dst))
-        self.__mounted = True
+        cmd = ['mount', '--bind', self.src, self.dst]
+        try:
+            check_call(cmd)
+        except CalledProcessError as err:
+            raise Exception("Failed to bind mount {0} to {1}".format(self.src, self.dst))
+        finally:
+            self.__mounted = True
 
     def unmount(self):
-        os.system("umount {}".format(self.dst))
-        self.__mounted = False
+        cmd = ['umount', self.dst]
+        try:
+            check_call(cmd)
+        except CalledProcessError as err:
+            raise Exception("Failed to unmount {0}".format(self.dst))
+        finally:
+            self.__mounted = False
 
     def __enter__(self):
         if __do_mount:
