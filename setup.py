@@ -31,7 +31,6 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 from distutils.core import setup
-import os.path
 
 from arado import __version__
 

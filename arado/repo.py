@@ -1,6 +1,6 @@
 # Software License Agreement (BSD License)
 #
-# Copyright (c) 2012, Eucalyptus Systems, Inc.
+# Copyright (c) 2012-2013, Eucalyptus Systems, Inc.
 # All rights reserved.
 #
 # Redistribution and use of this software in source and binary forms, with or
@@ -30,104 +30,145 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
-import requests
+# Core libraries
 import os
-import sys
-from .exception import PromotionError
-from .aradoutil import parsefiles
+import glob
+import fnmatch
+import tempfile
+import shutil
+import subprocess
+import stat
+
+# Third party libraries
+from BeautifulSoup import BeautifulSoup
+
+# Local libraries
+from .exception import SigningError, PromotionError
+
+NEW_REPO_TEMPL = {
+    "dirs": [
+        "rhel/5",
+        "rhel/6",
+    ],
+    "links": [
+        ["rhel", "centos"],
+        ["5", "rhel/5Server"],
+        ["6", "rhel/6Server"],
+        ["6", "rhel/6Workstation"],
+    ]
+}
 
 
-class PathBuilder(object):
-    SRC_PATH = "/srv/build-repo/repository/release"
-    DEST_PATH = "/srv/software/releases"
-    PATH_MAP = {
-        "eucalyptus" : "eucalyptus",
-        "enterprise" : "enterprise",
-        "eucadw" : "eucalyptus",
-        "eucalyptus-console" : "eucalyptus",
-        "load-balancer-image" : "eucalyptus",
-	"load-balancer-servo" : "load-balancer",
-        "euca2ools": "euca2ools",
-    }
-    DEFAULT_OPTS = {
-        "api" : None,
-        "buildtype" : None,
-        "release" : None
-    }
+def walkerror(error):
+    pass
 
-    def __init__(self, **opts):
-        self.opts = dict(PathBuilder.DEFAULT_OPTS, **opts)
-        self.api = self.opts["api"]
-        self.buildtype = self.opts["buildtype"]
-        self.release = self.opts["release"]
 
-    @property
-    def project_path(self):
+def merge(source, dest, signingkey=None):
+    repo_dirs = []
+    # Copy only original files
+    print("Info: copying files")
+    for root, dirs, files in os.walk(source, onerror=walkerror):
+        dest_root = root.replace(source, dest)
+
+        # Mark directories for which we will rebuild repository metadata
+        if dest_root.endswith("/repodata"):
+            repo_dirs.append(os.path.dirname(dest_root))
+            continue
+
+        if not os.path.exists(dest_root):
+            print("Info: creating directory '{}'".format(dest_root))
+            os.mkdir(dest_root)
+
+        for f in files:
+            dest_file = os.path.join(dest_root, f)
+            if os.path.islink(dest_file):
+                print "Info: skipping symlink " + f
+                continue
+            if os.path.exists(dest_file):
+                print "Info: skipping duplicate " + f
+            else:
+                shutil.copy2(os.path.join(root, f), dest_root)
+    # Rebuild repository metadata
+    for repo_dir in repo_dirs:
+        if signingkey:
+            sign_repo(repo_dir, signingkey)
+        rebuild_repo(repo_dir)
+
+
+def sign(repo, signingkey):
+    for root, dirs, files in os.walk(repo, onerror=walkerror):
         try:
-            return PathBuilder.PATH_MAP[self.api.project]
-        except:
-            return None
-
-    @property
-    def source_path(self):
-        return os.path.join(PathBuilder.SRC_PATH,
-                self.api.repository.replace("http://" + APIWrapper.API_SERVER + "/", "")
-                        .replace("/centos/6/x86_64", ""))
-
-    @property
-    def dest_path(self):
-        if self.buildtype and self.buildtype != "release":
-            return os.path.join(PathBuilder.DEST_PATH, self.project_path,
-                    self.buildtype, self.release)
-        else:
-            return os.path.join(PathBuilder.DEST_PATH, self.project_path,
-                    self.release)
+            pkglist = []
+            for pkg in fnmatch.filter(files, "*.rpm"):
+                if not os.path.islink(os.path.join(root, pkg)):
+                    pkglist.append(pkg)
+            sign_packages(pkglist, signingkey, path=root)
+        except SigningError, e:
+            print(e)
 
 
-class APIWrapper(object):
-    API_SERVER = "packages.release.eucalyptus-systems.com"
-    API_TEMPL = "http://%s/api/1/genrepo?distro=centos&releasever=6&arch=x86_64&url=%s&ref=%s&allow-old=true"
-    REPO_MAP = {
-        "eucalyptus" : "repo-euca@git.eucalyptus-systems.com:eucalyptus",
-        "enterprise" : "repo-euca@git.eucalyptus-systems.com:internal",
-        "eucadw" : "https://github.com/eucalyptus/bodega.git",
-        "load-balancer-image" : "https://github.com/eucalyptus/load-balancer-image.git",
-        "load-balancer-servo" : "https://github.com/eucalyptus/load-balancer-servo.git",
-        "eucalyptus-console" : "https://github.com/eucalyptus/eucalyptus-console.git",
-	"euca2ools": "https://github.com/eucalyptus/euca2ools.git",
-    }
+def stage(path, merge=False):
+    path_tmp = tempfile.mkdtemp(dir="/srv/software/.repotmp")
+    os.chmod(path_tmp,
+             stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH |
+             stat.S_IXOTH | stat.S_ISGID)
+    if os.path.exists(path) and merge:
+        cmd = ['cp', '-a', os.path.join(path, '.'), path_tmp]
+        p = subprocess.Popen(cmd)
+        p.communicate()
+        if p.returncode > 0:
+            raise PromotionError("Failed to create temporary repository")
+    else:
+        print("Info: creating repository template")
+        for d in NEW_REPO_TEMPL["dirs"]:
+            os.makedirs(os.path.join(path_tmp, d))
+        for link in NEW_REPO_TEMPL["links"]:
+            os.symlink(link[0], os.path.join(path_tmp, link[1]))
+    return path_tmp
 
-    def __init__(self, project, commit):
-        self.project = project
-        self.commit = commit
-        self.cached_packages = None
 
-    @property
-    def url(self):
+def rebuild_all(toplevel):
+    for d in NEW_REPO_TEMPL["dirs"]:
+        for arch in ("i386", "x86_64"):
+            archdir = os.path.join(toplevel, d, arch)
+            if os.path.isdir(archdir):
+                rebuild_repo(archdir)
+
+
+def rebuild(path, chroot=None):
+    print("Info: createrepo on " + path)
+    cmd = ["/usr/bin/createrepo"]
+
+    with CommandEnvironment(chroot=chroot, src=path) as env:
+        comps_file = None
         try:
-            return APIWrapper.REPO_MAP[self.project]
-        except:
-            return None
+            comps_file = glob.glob(os.path.join(path, "*xml"))[0]
+            if env.is_mounted:
+                comps_file = os.path.join(env.dst,
+                                          os.path.basename(comps_file))
 
-    @property
-    def repository(self):
-        api_url = APIWrapper.API_TEMPL % (APIWrapper.API_SERVER, self.url, self.commit)
-        r = requests.get(api_url)
-        if r.status_code != 200:
-            print api_url
-            raise PromotionError, r.text
-        return r.text.rstrip()
+            cmd += ["-g", comps_file]
+            print("Info: using comps file '{}'".format(comps_file))
+        except Exception, e:
+            print("Info: no comps file found")
 
-    @property
-    def packages(self):
-        try:
-            if not self.cached_packages:
-                r = requests.get(self.repository + "?F=0&P=*.rpm")
-                if r.status_code != 200:
-                    raise PromotionError, r.text
-                # Store list and remove the first item since it is parent directory
-                self.cached_packages = parsefiles(r.text)[1:]
-            return self.cached_packages
-        except Exception:
-            return []
+        cmd += [
+            "--checksum=sha",
+            "--update",
+            "--skip-symlinks",
+            "--unique-md-filenames",
+            env.dst,
+        ]
 
+        exitcode = env.exec_with_stdout(cmd, cwd=env.dst)['exitcode']
+        if exitcode > 0:
+            raise PromotionError("Failed to rebuild repository")
+
+
+def replace(source_path, dest_path):
+    dest_path_temp = dest_path + "-temp"
+    if os.path.exists(dest_path):
+        os.rename(dest_path, dest_path_temp)
+    shutil.move(source_path, dest_path)
+    if os.path.exists(dest_path_temp):
+        shutil.rmtree(dest_path_temp)

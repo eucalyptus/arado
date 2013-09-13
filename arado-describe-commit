@@ -32,12 +32,13 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
-from arado.repo import APIWrapper
-from arado import aradoutil
+import os
+import sys
+
+from arado.api import APIWrapper, PathBuilder
 from arado import __version__
 from optparse import OptionParser
-import sys
-import os
+
 
 if __name__ == "__main__":
     parser = OptionParser(version="%%prog %s" % (__version__))
@@ -51,6 +52,6 @@ if __name__ == "__main__":
         parser.error("Must specify project and commit ref!")
 
     api = APIWrapper(options.project, options.commit)
-    for p in api.packages:
-        print p
+    builder = PathBuilder(api=api, buildtype="nightly")
+    print os.path.basename(builder.source_path).split("-")[0]
 

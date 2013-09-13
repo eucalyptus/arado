@@ -1,6 +1,6 @@
 # Software License Agreement (BSD License)
 #
-# Copyright (c) 2012, Eucalyptus Systems, Inc.
+# Copyright (c) 2012-2013, Eucalyptus Systems, Inc.
 # All rights reserved.
 #
 # Redistribution and use of this software in source and binary forms, with or
@@ -30,15 +30,21 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
+# Core libraries
 import os
 import glob
 import tempfile
 import subprocess
+
+# Third party libraries
 import jinja2
+
+# Local libraries
 from .signing import export_public_key_file
-from .exception import SigningError
+from .util import SigningError
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'data')
+
 
 class TemplateFile(object):
     def __init__(self, template, path, **opts):
@@ -50,17 +56,20 @@ class TemplateFile(object):
     def __str__(self):
         for key, value in self.opts.iteritems():
             if value is None:
-                raise Exception, "Required key %s is not set" % (key)
+                raise ValueError("Required key '{}' is not set".format(key))
         tmpl = self.env.select_template([self.template])
         return tmpl.render(**self.opts)
+
 
 class SpecFile(TemplateFile):
     def __init__(self, path, **opts):
         super(SpecFile, self).__init__('spec.tmpl', path, **opts)
 
+
 class RepoFile(TemplateFile):
     def __init__(self, path, **opts):
         super(RepoFile, self).__init__('repo.tmpl', path, **opts)
+
 
 class PackageBuilder(object):
     DEFAULT_OPTS = {
