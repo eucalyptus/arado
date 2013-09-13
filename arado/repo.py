@@ -47,12 +47,10 @@ from .exception import SigningError, PromotionError
 
 NEW_REPO_TEMPL = {
     "dirs": [
-        "rhel/5",
         "rhel/6",
     ],
     "links": [
         ["rhel", "centos"],
-        ["5", "rhel/5Server"],
         ["6", "rhel/6Server"],
         ["6", "rhel/6Workstation"],
     ]
@@ -156,6 +154,7 @@ def rebuild(path, chroot=None):
             "--checksum=sha",
             "--update",
             "--skip-symlinks",
+            "-x", "*release-internal*",
             "--unique-md-filenames",
             env.dst,
         ]
