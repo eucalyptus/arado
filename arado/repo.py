@@ -44,7 +44,9 @@ from BeautifulSoup import BeautifulSoup
 
 # Local libraries
 from .config import get_config
+from .signing import sign_packages
 from .exception import SigningError, PromotionError
+from .utils import CommandEnvironment as CmdEnv
 
 NEW_REPO_TEMPL = {
     "dirs": [
@@ -63,6 +65,7 @@ def walkerror(error):
 
 
 def merge(source, dest, signingkey=None):
+    config = get_config()
     repo_dirs = []
     # Copy only original files
     print("Info: copying files")
@@ -78,6 +81,9 @@ def merge(source, dest, signingkey=None):
             print("Info: creating directory '{0}'".format(dest_root))
             os.mkdir(dest_root)
 
+        # os.chown(dest_root, config.uid, config.gid)
+        # os.chmod(dest_root, int(config.general().get('dirperms')))
+
         for f in files:
             dest_file = os.path.join(dest_root, f)
             if os.path.islink(dest_file):
@@ -87,11 +93,13 @@ def merge(source, dest, signingkey=None):
                 print "Info: skipping duplicate {0}".format(f)
             else:
                 shutil.copy2(os.path.join(root, f), dest_root)
+                # os.chown(dest_file, config.uid, config.gid)
+                # os.chmod(dest_file, int(config.general().get('fileperms')))
     # Rebuild repository metadata
     for repo_dir in repo_dirs:
         if signingkey:
-            sign_repo(repo_dir, signingkey)
-        rebuild_repo(repo_dir)
+            sign(repo_dir, signingkey)
+        rebuild(repo_dir)
 
 
 def sign(repo, signingkey):
@@ -132,7 +140,7 @@ def rebuild_all(toplevel):
         for arch in ("i386", "x86_64"):
             archdir = os.path.join(toplevel, d, arch)
             if os.path.isdir(archdir):
-                rebuild_repo(archdir)
+                rebuild(archdir)
 
 
 def rebuild(path, comps_file=None, chroot=None):
@@ -140,9 +148,9 @@ def rebuild(path, comps_file=None, chroot=None):
     cmd = ["/usr/bin/createrepo"]
 
     # Clear all repository metadata
-    shutil.rmtree(os.path.join(repo, "repodata"), ignore_errors=True)
+    shutil.rmtree(os.path.join(path, "repodata"), ignore_errors=True)
 
-    with CommandEnvironment(chroot=chroot, src=path) as env:
+    with CmdEnv(chroot=chroot, src=path) as env:
         try:
             if comps_file is None:
                 comps_file = glob.glob(os.path.join(path, "*xml"))[0]
@@ -156,7 +164,7 @@ def rebuild(path, comps_file=None, chroot=None):
             cmd += ["-g", comps_file]
             print("Info: using comps file '{0}'".format(comps_file))
         except Exception as err:
-            print("Info: no comps file found: {0}".format(str(err)))
+            print("Info: no comps file found; skipping")
 
         cmd += [
             "--checksum=sha",
@@ -168,7 +176,9 @@ def rebuild(path, comps_file=None, chroot=None):
             env.dst,
         ]
 
-        env.call(cmd, cwd=env.dst)
+
+        print "executing command: {0}".format(cmd)
+        env.call(cmd)
 
 def replace(source_path, dest_path):
     dest_path_temp = dest_path + "-temp"

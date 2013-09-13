@@ -30,7 +30,9 @@
 #
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
+import grp
 import os
+import pwd
 
 from ConfigParser import SafeConfigParser
 
@@ -62,6 +64,23 @@ class Config(SafeConfigParser):
     @property
     def filename(self):
         return self.config_file
+
+    @property
+    def uid(self):
+        uid = self.general().get('uid')
+        if uid:
+            return pwd.getpwnam(uid).pw_uid
+        else:
+            return 0
+
+    @property
+    def gid(self):
+        gid = self.general().get('gid')
+        if gid:
+            return grp.getgrnam(gid).gr_gid
+        else:
+            return 0
+
 
 def get_config():
     if os.path.isfile('/etc/arado.conf'):

@@ -31,7 +31,7 @@
 # Author: Matt Spaulding mspaulding@eucalyptus.com
 
 import os
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 
 from BeautifulSoup import BeautifulSoup
 
@@ -40,28 +40,27 @@ def links_from_html(html):
     return [link.string.strip() for link in BeautifulSoup(html).findAll('a')]
 
 
-class CommandEnvironment:
+class CommandEnvironment(object):
     DEFAULT_DEST = "/mnt"
 
     def __init__(self, chroot=None, src=None, dst=None):
         self.src = src
         self.dst = dst
         self.chroot = chroot
-        self.cmd = cmd
         self.__mounted = False
         self.__do_mount = False
         # We only perform a bind mount in the case where both
         # chroot and src have been set.
-        if chroot is not None and src is not None:
+        if chroot and src:
             self.__do_mount = True
-            if dst is None:
-                self.dst = BindMount.DEFAULT_DEST
+            if self.dst is None:
+                self.dst = CommandEnvironment.DEFAULT_DEST
         else:
             self.dst = self.src
 
     @property
     def chroot_prefix(self):
-        if chroot is None:
+        if self.chroot is None:
             return ''
         else:
             return "/usr/sbin/chroot {0} ".format(self.chroot)
@@ -79,12 +78,13 @@ class CommandEnvironment:
     def call(self, cmd, cwd=None):
         if isinstance(cmd, str):
             cmd = cmd.split(" ")
-        cmd = cmd.insert(0, self.chroot_prefix)
-        opts = {}
-        if cwd is not None:
-            opts['cwd'] = cwd
+        if self.chroot_prefix:
+            cmd = cmd.insert(0, self.chroot_prefix)
         try:
-            check_call(cmd, **opts)
+            if cwd:
+                check_call(cmd, cwd=cwd)
+            else:
+                check_call(cmd)
         except CalledProcessError as err:
             raise Exception("Command {0} failed with status {1}".format(cmd, err.returncode))
 
@@ -108,9 +108,10 @@ class CommandEnvironment:
             self.__mounted = False
 
     def __enter__(self):
-        if __do_mount:
+        if self.__do_mount:
             self.mount()
+	return self
 
-    def __exit__(self):
-        if __do_mount:
+    def __exit__(self, type=None, value=None, traceback=None):
+        if self.__do_mount:
             self.unmount()
