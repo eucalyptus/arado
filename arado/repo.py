@@ -45,6 +45,9 @@ class PathBuilder(object):
         "enterprise" : "enterprise",
         "eucadw" : "eucalyptus",
         "eucalyptus-console" : "eucalyptus",
+        "load-balancer-image" : "eucalyptus",
+	"load-balancer-servo" : "load-balancer",
+        "euca2ools": "euca2ools",
     }
     DEFAULT_OPTS = {
         "api" : None,
@@ -88,7 +91,10 @@ class APIWrapper(object):
         "eucalyptus" : "repo-euca@git.eucalyptus-systems.com:eucalyptus",
         "enterprise" : "repo-euca@git.eucalyptus-systems.com:internal",
         "eucadw" : "https://github.com/eucalyptus/bodega.git",
-        "eucalyptus-console" : "https://github.com/eucalyptus/eucalyptus-ui.git",
+        "load-balancer-image" : "https://github.com/eucalyptus/load-balancer-image.git",
+        "load-balancer-servo" : "https://github.com/eucalyptus/load-balancer-servo.git",
+        "eucalyptus-console" : "https://github.com/eucalyptus/eucalyptus-console.git",
+	"euca2ools": "https://github.com/eucalyptus/euca2ools.git",
     }
 
     def __init__(self, project, commit):
@@ -105,8 +111,10 @@ class APIWrapper(object):
 
     @property
     def repository(self):
-        r = requests.get(APIWrapper.API_TEMPL % (APIWrapper.API_SERVER, self.url, self.commit))
+        api_url = APIWrapper.API_TEMPL % (APIWrapper.API_SERVER, self.url, self.commit)
+        r = requests.get(api_url)
         if r.status_code != 200:
+            print api_url
             raise PromotionError, r.text
         return r.text.rstrip()
 

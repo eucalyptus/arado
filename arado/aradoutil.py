@@ -46,12 +46,10 @@ from .exception import SigningError
 
 NEW_REPO_TEMPL = {
     "dirs" : [
-        "rhel/5",
         "rhel/6",
     ],
     "links" : [
         ["rhel", "centos"],
-        ["5", "rhel/5Server"],
         ["6", "rhel/6Server"],
         ["6", "rhel/6Workstation"],
     ]
@@ -155,15 +153,20 @@ def rebuild_all_repos(toplevel):
                 rebuild_repo(archdir)
 
 # @verifypath
-def rebuild_repo(path, chroot="/mnt/chroot"):
+def rebuild_repo(path, chroot=None):
     print "Info: createrepo on " + path
 
     cmd = []
     repo = path
 
+    # Clear out old repository data
+    shutil.rmtree(os.path.join(repo, "repodata"), ignore_errors=True)
+
     if chroot:
         cmd = ["/usr/sbin/chroot", chroot]
-        os.system("mount --bind %s %s" % (path, os.path.join(chroot, "mnt")))
+        mount_cmd = "mount --bind %s %s" % (path, os.path.join(chroot, "mnt"))
+        print "Mount Command: " + mount_cmd
+        os.system(mount_cmd)
         repo = "/mnt"
 
     cmd += ["/usr/bin/createrepo"]
@@ -182,6 +185,7 @@ def rebuild_repo(path, chroot="/mnt/chroot"):
     cmd += ["--checksum=sha",
             "--update",
             "--skip-symlinks",
+            "-x", "*release-internal*",
             "--unique-md-filenames"]
 
     if chroot:

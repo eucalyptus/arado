@@ -47,7 +47,7 @@ RPMSIGN_CMD = 'rpmsign --define "_gpg_name %s" --define "__gpg_sign_cmd %%{__gpg
 
 KEY_RE = "^.*\(([\w\s]+)\).*$"
 
-def sign_packages(packages, key_name, path='.', chroot="/mnt/chroot"):
+def sign_packages(packages, key_name, path='.', chroot=None):
     #if not key_name in get_keys():
         #raise SigningError, 'No key "%s" exists' % (key_name)
     if not packages:
@@ -57,12 +57,14 @@ def sign_packages(packages, key_name, path='.', chroot="/mnt/chroot"):
     pkgpath = path
     if chroot:
         signcmd += "/usr/sbin/chroot %s " % (chroot)
-        os.system("mount --bind %s %s" % (path, os.path.join(chroot, "mnt")))
+        mount_cmd = "mount --bind %s %s" % (path, os.path.join(chroot, "mnt"))
+        print "Mount Command: " + mount_cmd
+        os.system(mount_cmd)
         pkgpath = "/mnt"
     signcmd += RPMSIGN_CMD
 
     package_list = " ".join([os.path.join(pkgpath, pkg) for pkg in packages])
-    proc = pexpect.spawn(signcmd % (key_name, package_list))
+    proc = pexpect.spawn(signcmd % (key_name, package_list), timeout=120)
     proc.logfile = sys.stdout
     proc.expect('Enter pass phrase: ')
     proc.send('\n')
