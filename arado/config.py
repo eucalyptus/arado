@@ -70,4 +70,6 @@ def get_config():
         return Config(os.path.join(os.getcwd(), 'arado.conf'))
     elif os.path.isfile(os.path.expanduser('~/.arado.conf')):
         return Config((os.path.expanduser('~/.arado.conf')))
+    else:
+        raise Exception("no config file found!")
 

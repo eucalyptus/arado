@@ -139,6 +139,9 @@ def rebuild(path, comps_file=None, chroot=None):
     print("Info: createrepo on {0}".format(path))
     cmd = ["/usr/bin/createrepo"]
 
+    # Clear all repository metadata
+    shutil.rmtree(os.path.join(repo, "repodata"), ignore_errors=True)
+
     with CommandEnvironment(chroot=chroot, src=path) as env:
         try:
             if comps_file is None:
@@ -161,6 +164,7 @@ def rebuild(path, comps_file=None, chroot=None):
             "--skip-symlinks",
             "-x", "*release-internal*",
             "--unique-md-filenames",
+            "--no-database",
             env.dst,
         ]
 
