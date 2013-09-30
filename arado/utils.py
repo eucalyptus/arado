@@ -34,6 +34,7 @@ import os
 from subprocess import check_call, CalledProcessError
 
 from BeautifulSoup import BeautifulSoup
+import pexpect
 
 
 def links_from_html(html):
@@ -72,7 +73,7 @@ class CommandEnvironment(object):
         if isinstance(cmd, list):
             cmd = " ".join(cmd)
         expect = pexpect.spawn(self._get_cmd(cmd), timeout=timeout)
-        expect.logfile = os.devnull
+        # expect.logfile = os.devnull
         return expect
 
     def call(self, cmd, cwd=None):

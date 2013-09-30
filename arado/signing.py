@@ -59,7 +59,7 @@ def sign_packages(packages, key_id, path='.', chroot=None):
 
     with CmdEnv(chroot=chroot, src=path, dst='/mnt') as env:
         package_list = " ".join([os.path.join(env.dst, pkg) for pkg in packages])
-        proc = env.expect_cmd(RPMSIGN_CMD % (key_name, package_list))
+        proc = env.call_with_expect(RPMSIGN_CMD % (key_id, package_list))
         proc.expect('Enter pass phrase: ')
         proc.send('\n')
         proc.expect(pexpect.EOF)
